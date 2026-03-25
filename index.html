@@ -11,11 +11,13 @@
 </head>
 <body>
   <div class="page-shell">
+    <div class="topbar" id="topbar" hidden>
+      <button type="button" class="ghost-button compact" id="logout-button">Log Out</button>
+    </div>
+
     <section class="auth-shell" id="auth-shell">
       <div class="auth-card">
-        <p class="eyebrow">Secure Access</p>
-        <h1 class="auth-title">Sign in to your trade journal</h1>
-        <p class="hero-text">Use Supabase login for real cloud sync. A demo passcode mode is available, but it is only a visual gate and not secure.</p>
+        <h1 class="auth-title">Login</h1>
         <form id="auth-form" class="trade-form">
           <div class="form-grid">
             <label>
@@ -28,7 +30,7 @@
             </label>
           </div>
           <div class="form-actions">
-            <button type="submit" class="primary-button">Sign In</button>
+            <button type="submit" class="primary-button">Login</button>
           </div>
         </form>
         <p class="auth-message" id="auth-message"></p>
@@ -44,11 +46,6 @@
             Log new trades with the core numbers you need, close positions with a guided exit flow,
             and review the performance patterns that help disciplined traders improve.
           </p>
-          <div class="hero-actions">
-            <button type="button" class="primary-button" id="focus-entry">Add New Trade</button>
-            <button type="button" class="secondary-button" id="seed-demo">Load Demo Data</button>
-            <button type="button" class="ghost-button" id="logout-button">Log Out</button>
-          </div>
         </div>
         <section class="trader-card">
           <h2>Trader Checklist</h2>
@@ -68,30 +65,47 @@
               <p class="panel-kicker">New Position</p>
               <h2>Enter swing trade</h2>
             </div>
-            <span class="panel-badge" id="storage-badge">Connecting...</span>
+            <span class="panel-badge" id="storage-badge">Ready</span>
           </div>
 
           <form id="trade-form" class="trade-form">
             <div class="form-grid">
               <label>
                 Stock name / Symbol
-                <input type="text" id="symbol" name="symbol" placeholder="AAPL" required>
+                <input type="text" id="symbol" name="symbol" required>
               </label>
               <label>
                 Entry price
-                <input type="number" id="entryPrice" name="entryPrice" min="0" step="0.01" placeholder="182.45" required>
+                <input type="number" id="entryPrice" name="entryPrice" min="0" step="0.01" required>
               </label>
               <label>
                 Quantity
-                <input type="number" id="quantity" name="quantity" min="1" step="1" placeholder="50" required>
+                <input type="number" id="quantity" name="quantity" min="1" step="1" required>
               </label>
               <label>
                 Platform / Broker
-                <input type="text" id="platform" name="platform" placeholder="Zerodha / Robinhood / IBKR" required>
+                <select id="platform" name="platform" required>
+                  <option value="Upstox">Upstox</option>
+                  <option value="Zerodha">Zerodha</option>
+                  <option value="Groww">Groww</option>
+                  <option value="Angel One">Angel One</option>
+                  <option value="Dhan">Dhan</option>
+                  <option value="FYERS">FYERS</option>
+                  <option value="5paisa">5paisa</option>
+                  <option value="ICICI Direct">ICICI Direct</option>
+                  <option value="Kotak Securities">Kotak Securities</option>
+                  <option value="Motilal Oswal">Motilal Oswal</option>
+                  <option value="HDFC Sky">HDFC Sky</option>
+                  <option value="Custom">Custom</option>
+                </select>
+              </label>
+              <label id="custom-platform-wrap" hidden>
+                Custom broker
+                <input type="text" id="customPlatform" name="customPlatform">
               </label>
               <label>
                 Entry fees
-                <input type="number" id="entryFees" name="entryFees" min="0" step="0.01" placeholder="8.50" required>
+                <input type="number" id="entryFees" name="entryFees" min="0" step="0.01" required>
               </label>
               <label>
                 Entry date
@@ -99,35 +113,54 @@
               </label>
               <label>
                 Stop-loss
-                <input type="number" id="stopLoss" name="stopLoss" min="0" step="0.01" placeholder="175.00">
+                <input type="number" id="stopLoss" name="stopLoss" min="0" step="0.01">
               </label>
               <label>
                 Target price
-                <input type="number" id="targetPrice" name="targetPrice" min="0" step="0.01" placeholder="198.00">
+                <input type="number" id="targetPrice" name="targetPrice" min="0" step="0.01">
               </label>
               <label>
                 Setup
-                <input type="text" id="setup" name="setup" placeholder="Breakout, pullback, base breakout">
+                <input type="text" id="setup" name="setup">
               </label>
               <label>
                 Conviction (1-5)
-                <input type="number" id="conviction" name="conviction" min="1" max="5" step="1" placeholder="3">
+                <input type="number" id="conviction" name="conviction" min="1" max="5" step="1">
               </label>
             </div>
 
             <label>
               Thesis / notes
-              <textarea id="notes" name="notes" rows="4" placeholder="Why are you taking this trade? What confirms the setup?"></textarea>
+              <textarea id="notes" name="notes" rows="4"></textarea>
             </label>
 
             <div class="form-actions">
               <button type="submit" class="primary-button">Save Trade</button>
-              <button type="reset" class="ghost-button">Clear</button>
+              <a class="secondary-button compact external-link" id="brokerage-link" href="https://upstox.com/calculator/brokerage-calculator/" target="_blank" rel="noreferrer">Open Brokerage Calculator</a>
             </div>
           </form>
         </section>
 
         <section class="stats-grid" id="stats-grid"></section>
+
+        <section class="panel graph-panel">
+          <div class="panel-heading">
+            <div>
+              <p class="panel-kicker">Performance Glimpse</p>
+              <h2>Visual performance</h2>
+            </div>
+          </div>
+          <div class="graphs-grid">
+            <div class="graph-card">
+              <h3>Cumulative P&amp;L</h3>
+              <div id="equity-curve" class="graph-box"></div>
+            </div>
+            <div class="graph-card">
+              <h3>Monthly P&amp;L</h3>
+              <div id="monthly-bars" class="graph-box"></div>
+            </div>
+          </div>
+        </section>
 
         <section class="panel open-panel">
           <div class="panel-heading">
@@ -156,9 +189,9 @@
               <h2>Closed trades</h2>
             </div>
             <div class="toolbar">
+              <button type="button" class="secondary-button compact" id="email-backup">Email Backup</button>
               <button type="button" class="secondary-button compact" id="export-json">Export JSON</button>
               <button type="button" class="secondary-button compact" id="export-csv">Export CSV</button>
-              <button type="button" class="ghost-button compact" id="reset-data">Reset</button>
             </div>
           </div>
           <div id="closed-trades" class="trade-list empty-state"></div>

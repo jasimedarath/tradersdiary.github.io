@@ -48,6 +48,12 @@ button {
   padding: 32px 0 48px;
 }
 
+.topbar {
+  display: flex;
+  justify-content: flex-end;
+  margin-bottom: 16px;
+}
+
 .auth-shell {
   min-height: calc(100vh - 80px);
   display: grid;
@@ -65,11 +71,13 @@ button {
 }
 
 .auth-title {
-  max-width: 12ch;
+  max-width: none;
   font-size: clamp(2rem, 3vw, 3.2rem);
+  margin-bottom: 20px;
 }
 
 .auth-message {
+  min-height: 24px;
   margin: 14px 0 0;
   color: var(--muted);
 }
@@ -137,17 +145,12 @@ h1 {
   margin: 16px 0 0;
 }
 
-.hero-actions,
 .form-actions,
 .toolbar,
 .trade-actions {
   display: flex;
   flex-wrap: wrap;
   gap: 12px;
-}
-
-.hero-actions {
-  margin-top: 24px;
 }
 
 .primary-button,
@@ -238,6 +241,7 @@ h1 {
 }
 
 .open-panel,
+.graph-panel,
 .history-panel,
 .insights-panel {
   grid-column: span 12;
@@ -269,6 +273,13 @@ h1 {
 .dialog-form {
   display: grid;
   gap: 16px;
+}
+
+.external-link {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  text-decoration: none;
 }
 
 .form-grid {
@@ -310,7 +321,8 @@ textarea {
 
 .stat-card,
 .insight-card,
-.trade-card-item {
+.trade-card-item,
+.graph-card {
   border-radius: var(--radius-lg);
   background: rgba(255, 255, 255, 0.58);
   border: 1px solid var(--line);
@@ -318,7 +330,8 @@ textarea {
 
 .stat-card,
 .insight-card,
-.trade-card-item {
+.trade-card-item,
+.graph-card {
   padding: 18px;
 }
 
@@ -409,6 +422,62 @@ textarea {
   grid-template-columns: repeat(3, minmax(0, 1fr));
 }
 
+.graphs-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16px;
+}
+
+.graph-card h3 {
+  font-size: 1.05rem;
+  margin-bottom: 14px;
+}
+
+.graph-box {
+  min-height: 220px;
+  border-radius: var(--radius-lg);
+  background: rgba(255, 249, 241, 0.88);
+  border: 1px solid rgba(54, 42, 33, 0.08);
+  padding: 12px;
+}
+
+.graph-empty {
+  height: 100%;
+  min-height: 196px;
+  display: grid;
+  place-items: center;
+  text-align: center;
+  color: var(--muted);
+}
+
+.chart-svg {
+  width: 100%;
+  height: 200px;
+  display: block;
+}
+
+.chart-labels {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  margin-top: 10px;
+  color: var(--muted);
+  font-size: 0.83rem;
+}
+
+.bar-labels {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(60px, 1fr));
+  gap: 8px;
+  margin-top: 10px;
+  color: var(--muted);
+  font-size: 0.83rem;
+}
+
+.bar-labels span {
+  text-align: center;
+}
+
 .insight-card h3 {
   font-size: 1.15rem;
   margin-bottom: 10px;
@@ -483,6 +552,7 @@ textarea {
   }
 
   .stats-grid,
+  .graphs-grid,
   .insights-grid {
     grid-template-columns: 1fr;
   }

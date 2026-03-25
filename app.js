@@ -34,23 +34,28 @@ const authShell = document.getElementById("auth-shell");
 const authForm = document.getElementById("auth-form");
 const authMessage = document.getElementById("auth-message");
 const appShell = document.getElementById("app-shell");
+const topbar = document.getElementById("topbar");
 
 const tradeForm = document.getElementById("trade-form");
 const openTradesContainer = document.getElementById("open-trades");
 const closedTradesContainer = document.getElementById("closed-trades");
 const statsGrid = document.getElementById("stats-grid");
 const insightsContainer = document.getElementById("insights");
+const equityCurveContainer = document.getElementById("equity-curve");
+const monthlyBarsContainer = document.getElementById("monthly-bars");
 const exitDialog = document.getElementById("exit-dialog");
 const exitForm = document.getElementById("exit-form");
 const exitTitle = document.getElementById("exit-title");
 const tradeCardTemplate = document.getElementById("trade-card-template");
 const storageBadge = document.getElementById("storage-badge");
+const platformSelect = document.getElementById("platform");
+const customPlatformWrap = document.getElementById("custom-platform-wrap");
+const customPlatformInput = document.getElementById("customPlatform");
+const brokerageLink = document.getElementById("brokerage-link");
 
-const focusEntryButton = document.getElementById("focus-entry");
-const seedDemoButton = document.getElementById("seed-demo");
+const emailBackupButton = document.getElementById("email-backup");
 const exportJsonButton = document.getElementById("export-json");
 const exportCsvButton = document.getElementById("export-csv");
-const resetButton = document.getElementById("reset-data");
 const logoutButton = document.getElementById("logout-button");
 const closeDialogButton = document.getElementById("close-dialog");
 const cancelExitButton = document.getElementById("cancel-exit");
@@ -71,8 +76,6 @@ if (APP_CONFIG.authMode === "supabase") {
   const { url, anonKey } = APP_CONFIG.supabase;
   if (url && anonKey) {
     supabase = createClient(url, anonKey);
-  } else {
-    authMessage.textContent = "Supabase is not configured yet. Update config.js.";
   }
 }
 
@@ -351,8 +354,100 @@ function renderInsights() {
 
 function renderApp() {
   renderStats();
+  renderGraphs();
   renderTradeLists();
   renderInsights();
+}
+
+function renderGraphs() {
+  renderEquityCurve();
+  renderMonthlyBars();
+}
+
+function renderEquityCurve() {
+  const closedTrades = getClosedTrades()
+    .slice()
+    .sort((a, b) => new Date(a.exitDate) - new Date(b.exitDate));
+
+  if (!closedTrades.length) {
+    equityCurveContainer.innerHTML = `<div class="graph-empty">Close trades to see your cumulative P&amp;L curve.</div>`;
+    return;
+  }
+
+  let runningTotal = 0;
+  const points = closedTrades.map((trade) => {
+    runningTotal += calculateNetPnL(trade);
+    return {
+      xLabel: trade.exitDate,
+      value: runningTotal,
+    };
+  });
+
+  const values = points.map((point) => point.value);
+  const min = Math.min(...values, 0);
+  const max = Math.max(...values, 0);
+  const range = max - min || 1;
+  const width = 520;
+  const height = 200;
+  const linePoints = points.map((point, index) => {
+    const x = points.length === 1 ? width / 2 : (index / (points.length - 1)) * (width - 24) + 12;
+    const y = height - ((point.value - min) / range) * (height - 24) - 12;
+    return `${x},${y}`;
+  }).join(" ");
+  const zeroY = height - ((0 - min) / range) * (height - 24) - 12;
+
+  equityCurveContainer.innerHTML = `
+    <svg class="chart-svg" viewBox="0 0 ${width} ${height}" preserveAspectRatio="none" aria-label="Cumulative P and L chart">
+      <line x1="0" y1="${zeroY}" x2="${width}" y2="${zeroY}" stroke="rgba(101, 89, 80, 0.35)" stroke-dasharray="4 4"></line>
+      <polyline fill="none" stroke="#0c6b58" stroke-width="4" stroke-linecap="round" stroke-linejoin="round" points="${linePoints}"></polyline>
+    </svg>
+    <div class="chart-labels">
+      <span>${points[0].xLabel}</span>
+      <span>${formatCurrency(points[points.length - 1].value)}</span>
+      <span>${points[points.length - 1].xLabel}</span>
+    </div>
+  `;
+}
+
+function renderMonthlyBars() {
+  const monthlyMap = new Map();
+  getClosedTrades().forEach((trade) => {
+    const monthKey = trade.exitDate ? trade.exitDate.slice(0, 7) : "Open";
+    monthlyMap.set(monthKey, (monthlyMap.get(monthKey) || 0) + calculateNetPnL(trade));
+  });
+
+  const entries = Array.from(monthlyMap.entries()).sort((a, b) => a[0].localeCompare(b[0])).slice(-6);
+
+  if (!entries.length) {
+    monthlyBarsContainer.innerHTML = `<div class="graph-empty">Monthly P&amp;L bars will appear once you exit trades.</div>`;
+    return;
+  }
+
+  const values = entries.map((entry) => entry[1]);
+  const maxAbs = Math.max(...values.map((value) => Math.abs(value)), 1);
+  const width = 520;
+  const height = 200;
+  const baseY = height / 2;
+  const slotWidth = width / entries.length;
+
+  const bars = entries.map(([month, value], index) => {
+    const barWidth = Math.max(24, slotWidth * 0.5);
+    const x = index * slotWidth + (slotWidth - barWidth) / 2;
+    const scaled = (Math.abs(value) / maxAbs) * (height / 2 - 18);
+    const y = value >= 0 ? baseY - scaled : baseY;
+    const fill = value >= 0 ? "#14795f" : "#b44931";
+    return `<rect x="${x}" y="${y}" width="${barWidth}" height="${scaled}" rx="10" fill="${fill}"></rect>`;
+  }).join("");
+
+  monthlyBarsContainer.innerHTML = `
+    <svg class="chart-svg" viewBox="0 0 ${width} ${height}" preserveAspectRatio="none" aria-label="Monthly P and L bar chart">
+      <line x1="0" y1="${baseY}" x2="${width}" y2="${baseY}" stroke="rgba(101, 89, 80, 0.35)" stroke-dasharray="4 4"></line>
+      ${bars}
+    </svg>
+    <div class="bar-labels">
+      ${entries.map(([month]) => `<span>${month}</span>`).join("")}
+    </div>
+  `;
 }
 
 function escapeCsv(value) {
@@ -406,44 +501,44 @@ async function loadTrades() {
     if (error) throw error;
 
     trades = data.map(mapTradeFromDb);
-    setStorageBadge("Synced with Supabase");
+    setStorageBadge("Saved");
     renderApp();
     return;
   }
 
   const raw = localStorage.getItem(DEMO_STORAGE_KEY);
   trades = raw ? JSON.parse(raw) : [];
-  setStorageBadge("Saved in this browser only", true);
+  setStorageBadge("Saved");
   renderApp();
 }
 
 async function saveTrades() {
   if (APP_CONFIG.authMode === "supabase") {
-    const { error: deleteError } = await supabase
-      .from(APP_CONFIG.supabase.table)
-      .delete()
-      .eq("user_id", activeUser.id);
-
-    if (deleteError) throw deleteError;
-
     if (!trades.length) {
-      setStorageBadge("Synced with Supabase");
+      const { error } = await supabase
+        .from(APP_CONFIG.supabase.table)
+        .delete()
+        .eq("user_id", activeUser.id);
+
+      if (error) throw error;
+
+      setStorageBadge("Saved");
       return;
     }
 
     const payload = trades.map(mapTradeToDb);
     const { error } = await supabase
       .from(APP_CONFIG.supabase.table)
-      .insert(payload);
+      .upsert(payload, { onConflict: "id" });
 
     if (error) throw error;
 
-    setStorageBadge("Synced with Supabase");
+    setStorageBadge("Saved");
     return;
   }
 
   localStorage.setItem(DEMO_STORAGE_KEY, JSON.stringify(trades));
-  setStorageBadge("Saved in this browser only", true);
+  setStorageBadge("Saved");
 }
 
 function mapTradeFromDb(row) {
@@ -514,19 +609,41 @@ function openExitDialog(tradeId) {
 }
 
 async function persistAndRender() {
-  setStorageBadge("Saving...");
+  setStorageBadge("Saving");
   await saveTrades();
   renderApp();
 }
 
 function showApp() {
   authShell.hidden = true;
+  authShell.style.display = "none";
   appShell.hidden = false;
+  appShell.style.display = "block";
+  topbar.hidden = false;
+  topbar.style.display = "flex";
 }
 
 function showAuth() {
   authShell.hidden = false;
+  authShell.style.display = "grid";
   appShell.hidden = true;
+  appShell.style.display = "none";
+  topbar.hidden = true;
+  topbar.style.display = "none";
+}
+
+function updatePlatformUI() {
+  const isCustom = platformSelect.value === "Custom";
+  customPlatformWrap.hidden = !isCustom;
+  customPlatformWrap.style.display = isCustom ? "grid" : "none";
+  customPlatformInput.required = isCustom;
+  if (!isCustom) {
+    customPlatformInput.value = "";
+  }
+
+  brokerageLink.href = platformSelect.value === "Upstox"
+    ? "https://upstox.com/calculator/brokerage-calculator/"
+    : "https://upstox.com/calculator/brokerage-calculator/";
 }
 
 async function loginWithSupabase(email, password) {
@@ -577,7 +694,7 @@ authForm.addEventListener("submit", async (event) => {
   const email = formData.get("email").toString().trim();
   const password = formData.get("password").toString();
 
-  setAuthMessage("Signing in...");
+  setAuthMessage("");
 
   try {
     if (APP_CONFIG.authMode === "supabase") {
@@ -590,7 +707,7 @@ authForm.addEventListener("submit", async (event) => {
     showApp();
     setAuthMessage("");
   } catch (error) {
-    setAuthMessage(error.message || "Unable to sign in.", true);
+    setAuthMessage("Login failed", true);
   }
 });
 
@@ -604,7 +721,9 @@ tradeForm.addEventListener("submit", async (event) => {
     symbol: formData.get("symbol").toString().trim().toUpperCase(),
     entryPrice: Number(formData.get("entryPrice")),
     quantity: Number(formData.get("quantity")),
-    platform: formData.get("platform").toString().trim(),
+    platform: formData.get("platform").toString() === "Custom"
+      ? formData.get("customPlatform").toString().trim()
+      : formData.get("platform").toString().trim(),
     entryFees: Number(formData.get("entryFees")),
     entryDate: formData.get("entryDate"),
     stopLoss: formData.get("stopLoss") ? Number(formData.get("stopLoss")) : null,
@@ -622,6 +741,8 @@ tradeForm.addEventListener("submit", async (event) => {
   trades.unshift(trade);
   tradeForm.reset();
   document.getElementById("entryDate").value = today;
+  platformSelect.value = "Upstox";
+  updatePlatformUI();
 
   try {
     await persistAndRender();
@@ -658,84 +779,6 @@ exitForm.addEventListener("submit", async (event) => {
   }
 });
 
-focusEntryButton.addEventListener("click", () => {
-  document.getElementById("symbol").focus();
-  document.getElementById("symbol").scrollIntoView({ behavior: "smooth", block: "center" });
-});
-
-seedDemoButton.addEventListener("click", async () => {
-  if (trades.length) return;
-
-  trades = [
-    {
-      id: crypto.randomUUID(),
-      status: "open",
-      symbol: "NVDA",
-      entryPrice: 905,
-      quantity: 8,
-      platform: "IBKR",
-      entryFees: 4.5,
-      entryDate: today,
-      stopLoss: 872,
-      targetPrice: 975,
-      setup: "Momentum breakout",
-      conviction: 4,
-      notes: "Strong earnings continuation with volume expansion.",
-      exitPrice: null,
-      exitFees: 0,
-      exitDate: null,
-      exitNotes: "",
-      outcomeTag: "",
-    },
-    {
-      id: crypto.randomUUID(),
-      status: "closed",
-      symbol: "MSFT",
-      entryPrice: 412,
-      quantity: 15,
-      platform: "Zerodha",
-      entryFees: 3.5,
-      entryDate: "2026-03-10",
-      stopLoss: 398,
-      targetPrice: 438,
-      setup: "Pullback to support",
-      conviction: 5,
-      notes: "Weekly uptrend intact and price reclaimed 20 EMA.",
-      exitPrice: 437,
-      exitFees: 3.5,
-      exitDate: "2026-03-17",
-      exitNotes: "Exited into planned target zone.",
-      outcomeTag: "Target hit",
-    },
-    {
-      id: crypto.randomUUID(),
-      status: "closed",
-      symbol: "TSLA",
-      entryPrice: 188,
-      quantity: 20,
-      platform: "Robinhood",
-      entryFees: 1,
-      entryDate: "2026-03-02",
-      stopLoss: 179,
-      targetPrice: 205,
-      setup: "Base breakout",
-      conviction: 3,
-      notes: "Took early breakout before follow-through confirmed.",
-      exitPrice: 180,
-      exitFees: 1,
-      exitDate: "2026-03-05",
-      exitNotes: "Stopped out after support failed.",
-      outcomeTag: "Stopped out",
-    },
-  ];
-
-  try {
-    await persistAndRender();
-  } catch (error) {
-    setStorageBadge(error.message || "Save failed", true);
-  }
-});
-
 exportJsonButton.addEventListener("click", () => {
   downloadTextFile("swing-trades.json", "application/json", JSON.stringify({ trades }, null, 2));
 });
@@ -744,17 +787,24 @@ exportCsvButton.addEventListener("click", () => {
   downloadTextFile("swing-trades.csv", "text/csv;charset=utf-8", buildCsv());
 });
 
-resetButton.addEventListener("click", async () => {
-  const shouldReset = window.confirm("Delete all saved trades?");
-  if (!shouldReset) return;
+emailBackupButton.addEventListener("click", async () => {
+  const file = new File([buildCsv()], "swing-trades-backup.csv", { type: "text/csv;charset=utf-8" });
 
-  trades = [];
-
-  try {
-    await persistAndRender();
-  } catch (error) {
-    setStorageBadge(error.message || "Reset failed", true);
+  if (navigator.canShare && navigator.canShare({ files: [file] })) {
+    try {
+      await navigator.share({
+        title: "Swing Trades Backup",
+        text: "Backup file for swing trades.",
+        files: [file],
+      });
+      return;
+    } catch (error) {
+      if (error.name === "AbortError") return;
+    }
   }
+
+  downloadTextFile("swing-trades-backup.csv", "text/csv;charset=utf-8", buildCsv());
+  window.location.href = "mailto:?subject=Swing%20Trades%20Backup&body=The%20backup%20CSV%20has%20been%20downloaded.%20Please%20attach%20the%20file%20to%20this%20email.";
 });
 
 logoutButton.addEventListener("click", async () => {
@@ -766,8 +816,11 @@ logoutButton.addEventListener("click", async () => {
   activeUser = null;
   trades = [];
   showAuth();
+  authForm.reset();
   setAuthMessage("");
 });
+
+platformSelect.addEventListener("change", updatePlatformUI);
 
 closeDialogButton.addEventListener("click", () => {
   exitDialog.close();
@@ -782,6 +835,8 @@ cancelExitButton.addEventListener("click", () => {
 exitDialog.addEventListener("close", resetExitForm);
 
 async function init() {
+  customPlatformWrap.style.display = "none";
+  updatePlatformUI();
   const restored = await restoreSession();
 
   if (restored) {
@@ -790,17 +845,12 @@ async function init() {
       showApp();
       return;
     } catch (error) {
-      setAuthMessage(error.message || "Unable to load trades.", true);
+      setAuthMessage("Unable to load data", true);
     }
   }
 
   showAuth();
-
-  if (APP_CONFIG.authMode === "demo") {
-    setAuthMessage("Demo mode is active. This is not secure for real private data.");
-  } else {
-    setAuthMessage("Use your Supabase email and password.");
-  }
+  setAuthMessage("");
 }
 
 init();
