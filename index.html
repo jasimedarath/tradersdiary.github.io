@@ -1,0 +1,234 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Swing Trade Tracker</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;700&family=DM+Sans:wght@400;500;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <div class="page-shell">
+    <section class="auth-shell" id="auth-shell">
+      <div class="auth-card">
+        <p class="eyebrow">Secure Access</p>
+        <h1 class="auth-title">Sign in to your trade journal</h1>
+        <p class="hero-text">Use Supabase login for real cloud sync. A demo passcode mode is available, but it is only a visual gate and not secure.</p>
+        <form id="auth-form" class="trade-form">
+          <div class="form-grid">
+            <label>
+              Email / Username
+              <input type="text" id="auth-email" name="email" autocomplete="username" required>
+            </label>
+            <label>
+              Password
+              <input type="password" id="auth-password" name="password" autocomplete="current-password" required>
+            </label>
+          </div>
+          <div class="form-actions">
+            <button type="submit" class="primary-button">Sign In</button>
+          </div>
+        </form>
+        <p class="auth-message" id="auth-message"></p>
+      </div>
+    </section>
+
+    <div id="app-shell" hidden>
+      <header class="hero">
+        <div class="hero-copy">
+          <p class="eyebrow">Swing Trade Journal</p>
+          <h1>Track every idea, every exit, and the habits behind your edge.</h1>
+          <p class="hero-text">
+            Log new trades with the core numbers you need, close positions with a guided exit flow,
+            and review the performance patterns that help disciplined traders improve.
+          </p>
+          <div class="hero-actions">
+            <button type="button" class="primary-button" id="focus-entry">Add New Trade</button>
+            <button type="button" class="secondary-button" id="seed-demo">Load Demo Data</button>
+            <button type="button" class="ghost-button" id="logout-button">Log Out</button>
+          </div>
+        </div>
+        <section class="trader-card">
+          <h2>Trader Checklist</h2>
+          <ul class="checklist">
+            <li>Trade only planned setups</li>
+            <li>Define stop-loss and target before entry</li>
+            <li>Size positions based on risk, not conviction</li>
+            <li>Review wins and losses weekly</li>
+          </ul>
+        </section>
+      </header>
+
+      <main class="dashboard">
+        <section class="panel form-panel">
+          <div class="panel-heading">
+            <div>
+              <p class="panel-kicker">New Position</p>
+              <h2>Enter swing trade</h2>
+            </div>
+            <span class="panel-badge" id="storage-badge">Connecting...</span>
+          </div>
+
+          <form id="trade-form" class="trade-form">
+            <div class="form-grid">
+              <label>
+                Stock name / Symbol
+                <input type="text" id="symbol" name="symbol" placeholder="AAPL" required>
+              </label>
+              <label>
+                Entry price
+                <input type="number" id="entryPrice" name="entryPrice" min="0" step="0.01" placeholder="182.45" required>
+              </label>
+              <label>
+                Quantity
+                <input type="number" id="quantity" name="quantity" min="1" step="1" placeholder="50" required>
+              </label>
+              <label>
+                Platform / Broker
+                <input type="text" id="platform" name="platform" placeholder="Zerodha / Robinhood / IBKR" required>
+              </label>
+              <label>
+                Entry fees
+                <input type="number" id="entryFees" name="entryFees" min="0" step="0.01" placeholder="8.50" required>
+              </label>
+              <label>
+                Entry date
+                <input type="date" id="entryDate" name="entryDate" required>
+              </label>
+              <label>
+                Stop-loss
+                <input type="number" id="stopLoss" name="stopLoss" min="0" step="0.01" placeholder="175.00">
+              </label>
+              <label>
+                Target price
+                <input type="number" id="targetPrice" name="targetPrice" min="0" step="0.01" placeholder="198.00">
+              </label>
+              <label>
+                Setup
+                <input type="text" id="setup" name="setup" placeholder="Breakout, pullback, base breakout">
+              </label>
+              <label>
+                Conviction (1-5)
+                <input type="number" id="conviction" name="conviction" min="1" max="5" step="1" placeholder="3">
+              </label>
+            </div>
+
+            <label>
+              Thesis / notes
+              <textarea id="notes" name="notes" rows="4" placeholder="Why are you taking this trade? What confirms the setup?"></textarea>
+            </label>
+
+            <div class="form-actions">
+              <button type="submit" class="primary-button">Save Trade</button>
+              <button type="reset" class="ghost-button">Clear</button>
+            </div>
+          </form>
+        </section>
+
+        <section class="stats-grid" id="stats-grid"></section>
+
+        <section class="panel open-panel">
+          <div class="panel-heading">
+            <div>
+              <p class="panel-kicker">Active Trades</p>
+              <h2>Positions still open</h2>
+            </div>
+          </div>
+          <div id="open-trades" class="trade-list empty-state"></div>
+        </section>
+
+        <section class="panel insights-panel">
+          <div class="panel-heading">
+            <div>
+              <p class="panel-kicker">Performance Review</p>
+              <h2>What your journal is saying</h2>
+            </div>
+          </div>
+          <div id="insights" class="insights-grid"></div>
+        </section>
+
+        <section class="panel history-panel">
+          <div class="panel-heading">
+            <div>
+              <p class="panel-kicker">Trade History</p>
+              <h2>Closed trades</h2>
+            </div>
+            <div class="toolbar">
+              <button type="button" class="secondary-button compact" id="export-json">Export JSON</button>
+              <button type="button" class="secondary-button compact" id="export-csv">Export CSV</button>
+              <button type="button" class="ghost-button compact" id="reset-data">Reset</button>
+            </div>
+          </div>
+          <div id="closed-trades" class="trade-list empty-state"></div>
+        </section>
+      </main>
+    </div>
+  </div>
+
+  <dialog id="exit-dialog">
+    <form method="dialog" id="exit-form" class="dialog-form">
+      <div class="dialog-header">
+        <div>
+          <p class="panel-kicker">Exit Trade</p>
+          <h2 id="exit-title">Close position</h2>
+        </div>
+        <button type="button" class="icon-button" id="close-dialog" aria-label="Close">x</button>
+      </div>
+
+      <div class="form-grid">
+        <label>
+          Exit price
+          <input type="number" id="exitPrice" name="exitPrice" min="0" step="0.01" required>
+        </label>
+        <label>
+          Exit fees
+          <input type="number" id="exitFees" name="exitFees" min="0" step="0.01" required>
+        </label>
+        <label>
+          Exit date
+          <input type="date" id="exitDate" name="exitDate" required>
+        </label>
+        <label>
+          Outcome tag
+          <select id="outcomeTag" name="outcomeTag">
+            <option value="Target hit">Target hit</option>
+            <option value="Stopped out">Stopped out</option>
+            <option value="Manual exit">Manual exit</option>
+            <option value="Partial / scale out">Partial / scale out</option>
+          </select>
+        </label>
+      </div>
+
+      <label>
+        Exit notes
+        <textarea id="exitNotes" name="exitNotes" rows="4" placeholder="How well did you follow the plan?"></textarea>
+      </label>
+
+      <div class="form-actions">
+        <button type="submit" class="primary-button">Save Exit</button>
+        <button type="button" class="ghost-button" id="cancel-exit">Cancel</button>
+      </div>
+    </form>
+  </dialog>
+
+  <template id="trade-card-template">
+    <article class="trade-card-item">
+      <div class="trade-header">
+        <div>
+          <h3 class="trade-symbol"></h3>
+          <p class="trade-meta"></p>
+        </div>
+        <span class="trade-pill"></span>
+      </div>
+      <div class="trade-metrics"></div>
+      <p class="trade-notes"></p>
+      <div class="trade-actions"></div>
+    </article>
+  </template>
+
+  <script src="config.js"></script>
+  <script type="module" src="app.js"></script>
+</body>
+</html>
