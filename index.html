@@ -18,6 +18,7 @@
     <section class="auth-shell" id="auth-shell">
       <div class="auth-card">
         <h1 class="auth-title">Swing Trade Tracker</h1>
+        <p class="hero-text auth-subtitle">Journal your setups, exits, and performance in one focused workspace.</p>
         <form id="auth-form" class="trade-form">
           <div class="form-grid">
             <label>
@@ -58,8 +59,14 @@
         </section>
       </header>
 
+      <nav class="mobile-nav" aria-label="Sections">
+        <button type="button" class="mobile-nav-button active" data-mobile-view="capture">Capture</button>
+        <button type="button" class="mobile-nav-button" data-mobile-view="review">Review</button>
+        <button type="button" class="mobile-nav-button" data-mobile-view="history">History</button>
+      </nav>
+
       <main class="dashboard">
-        <section class="panel form-panel">
+        <section class="panel form-panel" data-mobile-section="capture">
           <div class="panel-heading">
             <div>
               <p class="panel-kicker">New Position</p>
@@ -141,9 +148,9 @@
           </form>
         </section>
 
-        <section class="stats-grid" id="stats-grid"></section>
+        <section class="stats-grid" id="stats-grid" data-mobile-section="review"></section>
 
-        <section class="panel graph-panel">
+        <section class="panel graph-panel" data-mobile-section="review">
           <div class="panel-heading">
             <div>
               <p class="panel-kicker">Performance Glimpse</p>
@@ -162,7 +169,7 @@
           </div>
         </section>
 
-        <section class="panel open-panel">
+        <section class="panel open-panel" data-mobile-section="capture">
           <div class="panel-heading">
             <div>
               <p class="panel-kicker">Active Trades</p>
@@ -172,7 +179,7 @@
           <div id="open-trades" class="trade-list empty-state"></div>
         </section>
 
-        <section class="panel insights-panel">
+        <section class="panel insights-panel" data-mobile-section="review">
           <div class="panel-heading">
             <div>
               <p class="panel-kicker">Performance Review</p>
@@ -182,7 +189,7 @@
           <div id="insights" class="insights-grid"></div>
         </section>
 
-        <section class="panel history-panel">
+        <section class="panel history-panel" data-mobile-section="history">
           <div class="panel-heading">
             <div>
               <p class="panel-kicker">Trade History</p>

@@ -54,6 +54,10 @@ button {
   margin-bottom: 16px;
 }
 
+#topbar[hidden] {
+  display: none !important;
+}
+
 .auth-shell {
   min-height: calc(100vh - 80px);
   display: grid;
@@ -83,6 +87,11 @@ button {
   color: var(--muted);
 }
 
+.auth-subtitle {
+  margin: 0 0 20px;
+  text-align: center;
+}
+
 .auth-error {
   color: var(--loss);
 }
@@ -92,6 +101,10 @@ button {
   grid-template-columns: 1.8fr 1fr;
   gap: 24px;
   margin-bottom: 24px;
+}
+
+.mobile-nav {
+  display: none;
 }
 
 .hero-copy,
@@ -434,6 +447,11 @@ textarea {
   margin-bottom: 14px;
 }
 
+.mobile-nav-button.active {
+  background: var(--primary);
+  color: #fff;
+}
+
 .graph-box {
   min-height: 220px;
   border-radius: var(--radius-lg);
@@ -577,6 +595,11 @@ textarea {
     padding-top: 20px;
   }
 
+  .hero {
+    gap: 16px;
+    margin-bottom: 16px;
+  }
+
   .hero-copy,
   .panel,
   .trader-card,
@@ -584,12 +607,33 @@ textarea {
     padding: 20px;
   }
 
-  .form-grid {
-    grid-template-columns: 1fr;
+  .hero-text {
+    font-size: 0.95rem;
+  }
+
+  .trader-card {
+    display: none;
+  }
+
+  .mobile-nav {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 8px;
+    margin-bottom: 16px;
+  }
+
+  .mobile-nav-button {
+    border: none;
+    border-radius: 14px;
+    padding: 12px 10px;
+    background: rgba(12, 107, 88, 0.1);
+    color: var(--primary-strong);
+    font-weight: 700;
   }
 
   h1 {
-    font-size: 2.5rem;
+    max-width: none;
+    font-size: 2rem;
   }
 
   .topbar {
@@ -608,5 +652,37 @@ textarea {
 
   .panel-badge {
     align-self: flex-start;
+  }
+
+  .dashboard [data-mobile-section] {
+    display: none;
+  }
+
+  .dashboard.mobile-view-capture [data-mobile-section="capture"],
+  .dashboard.mobile-view-review [data-mobile-section="review"],
+  .dashboard.mobile-view-history [data-mobile-section="history"] {
+    display: block;
+  }
+
+  .stats-grid {
+    gap: 12px;
+  }
+
+  .stat-card,
+  .insight-card,
+  .trade-card-item,
+  .graph-card {
+    padding: 16px;
+  }
+
+  input,
+  select,
+  textarea {
+    padding: 14px 12px;
+    min-height: 46px;
+  }
+
+  textarea {
+    min-height: 110px;
   }
 }

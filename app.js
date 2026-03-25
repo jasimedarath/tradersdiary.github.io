@@ -35,6 +35,8 @@ const authForm = document.getElementById("auth-form");
 const authMessage = document.getElementById("auth-message");
 const appShell = document.getElementById("app-shell");
 const topbar = document.getElementById("topbar");
+const dashboard = document.querySelector(".dashboard");
+const mobileNavButtons = Array.from(document.querySelectorAll(".mobile-nav-button"));
 
 const tradeForm = document.getElementById("trade-form");
 const openTradesContainer = document.getElementById("open-trades");
@@ -71,6 +73,7 @@ let supabase = null;
 let activeUser = null;
 let trades = [];
 let tradeToExit = null;
+let activeMobileView = "capture";
 
 if (APP_CONFIG.authMode === "supabase") {
   const { url, anonKey } = APP_CONFIG.supabase;
@@ -621,6 +624,7 @@ function showApp() {
   appShell.style.display = "block";
   topbar.hidden = false;
   topbar.style.display = "flex";
+  applyMobileView();
 }
 
 function showAuth() {
@@ -630,6 +634,14 @@ function showAuth() {
   appShell.style.display = "none";
   topbar.hidden = true;
   topbar.style.display = "none";
+}
+
+function applyMobileView() {
+  dashboard.classList.remove("mobile-view-capture", "mobile-view-review", "mobile-view-history");
+  dashboard.classList.add(`mobile-view-${activeMobileView}`);
+  mobileNavButtons.forEach((button) => {
+    button.classList.toggle("active", button.dataset.mobileView === activeMobileView);
+  });
 }
 
 function updatePlatformUI() {
@@ -821,6 +833,12 @@ logoutButton.addEventListener("click", async () => {
 });
 
 platformSelect.addEventListener("change", updatePlatformUI);
+mobileNavButtons.forEach((button) => {
+  button.addEventListener("click", () => {
+    activeMobileView = button.dataset.mobileView;
+    applyMobileView();
+  });
+});
 
 closeDialogButton.addEventListener("click", () => {
   exitDialog.close();
@@ -837,6 +855,7 @@ exitDialog.addEventListener("close", resetExitForm);
 async function init() {
   customPlatformWrap.style.display = "none";
   updatePlatformUI();
+  applyMobileView();
   const restored = await restoreSession();
 
   if (restored) {
