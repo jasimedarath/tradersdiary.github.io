@@ -17,5 +17,6 @@ window.APP_CONFIG = {
     url: "https://YOUR_PROJECT.supabase.co",
     anonKey: "YOUR_SUPABASE_ANON_KEY",
     table: "trades",
+    financeTable: "finance_workspaces",
   },
 };

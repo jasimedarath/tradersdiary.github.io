@@ -39,34 +39,42 @@
     </section>
 
     <div id="app-shell" hidden>
-      <header class="hero">
-        <div class="hero-copy">
-          <p class="eyebrow">Swing Trade Journal</p>
-          <h1>Track every idea, every exit, and the habits behind your edge.</h1>
-          <p class="hero-text">
-            Log new trades with the core numbers you need, close positions with a guided exit flow,
-            and review the performance patterns that help disciplined traders improve.
-          </p>
-        </div>
-        <section class="trader-card">
-          <h2>Trader Checklist</h2>
-          <ul class="checklist">
-            <li>Trade only planned setups</li>
-            <li>Define stop-loss and target before entry</li>
-            <li>Size positions based on risk, not conviction</li>
-            <li>Review wins and losses weekly</li>
-          </ul>
-        </section>
-      </header>
-
-      <nav class="mobile-nav" aria-label="Sections">
-        <button type="button" class="mobile-nav-button active" data-mobile-view="capture">Capture</button>
-        <button type="button" class="mobile-nav-button" data-mobile-view="review">Review</button>
-        <button type="button" class="mobile-nav-button" data-mobile-view="history">History</button>
+      <nav class="app-nav" aria-label="App Sections">
+        <button type="button" class="app-nav-button active" data-app-view="dashboard">Dashboard</button>
+        <button type="button" class="app-nav-button" data-app-view="trades">Trades</button>
+        <button type="button" class="app-nav-button" data-app-view="finance">Finance</button>
       </nav>
 
       <main class="dashboard">
-        <section class="panel form-panel" data-mobile-section="capture">
+        <section class="panel dashboard-overview-panel" data-app-section="dashboard">
+          <div class="panel-heading">
+            <div>
+              <p class="panel-kicker">Overview</p>
+              <h2>Your money and trading snapshot</h2>
+            </div>
+            <span class="panel-badge" id="dashboard-health-badge">Ready</span>
+          </div>
+          <div class="overview-strip">
+            <article class="overview-chip">
+              <span class="overview-label">Open Trades</span>
+              <strong id="overview-open-trades">0</strong>
+            </article>
+            <article class="overview-chip">
+              <span class="overview-label">Closed Trades</span>
+              <strong id="overview-closed-trades">0</strong>
+            </article>
+            <article class="overview-chip">
+              <span class="overview-label">Finance Tables</span>
+              <strong id="overview-finance-tables">0</strong>
+            </article>
+            <article class="overview-chip">
+              <span class="overview-label">Net Cash Gap</span>
+              <strong id="overview-cash-gap">0.00</strong>
+            </article>
+          </div>
+        </section>
+
+        <section class="panel form-panel" data-app-section="trades">
           <div class="panel-heading">
             <div>
               <p class="panel-kicker">New Position</p>
@@ -148,9 +156,27 @@
           </form>
         </section>
 
-        <section class="stats-grid" id="stats-grid" data-mobile-section="review"></section>
+        <section class="panel stats-panel" data-app-section="dashboard">
+          <div class="panel-heading">
+            <div>
+              <p class="panel-kicker">Trading Overview</p>
+              <h2>Performance at a glance</h2>
+            </div>
+          </div>
+          <div class="stats-grid" id="stats-grid"></div>
+        </section>
 
-        <section class="panel graph-panel" data-mobile-section="review">
+        <section class="panel stats-panel finance-summary-panel" data-app-section="dashboard">
+          <div class="panel-heading">
+            <div>
+              <p class="panel-kicker">Finance Overview</p>
+              <h2>Balances, dues, and investments</h2>
+            </div>
+          </div>
+          <div class="stats-grid finance-stats-grid" id="finance-stats-grid"></div>
+        </section>
+
+        <section class="panel graph-panel" data-app-section="dashboard">
           <div class="panel-heading">
             <div>
               <p class="panel-kicker">Performance Glimpse</p>
@@ -169,7 +195,7 @@
           </div>
         </section>
 
-        <section class="panel open-panel" data-mobile-section="capture">
+        <section class="panel open-panel" data-app-section="trades">
           <div class="panel-heading">
             <div>
               <p class="panel-kicker">Active Trades</p>
@@ -179,7 +205,7 @@
           <div id="open-trades" class="trade-list empty-state"></div>
         </section>
 
-        <section class="panel insights-panel" data-mobile-section="review">
+        <section class="panel insights-panel" data-app-section="dashboard">
           <div class="panel-heading">
             <div>
               <p class="panel-kicker">Performance Review</p>
@@ -189,7 +215,7 @@
           <div id="insights" class="insights-grid"></div>
         </section>
 
-        <section class="panel history-panel" data-mobile-section="history">
+        <section class="panel history-panel" data-app-section="trades">
           <div class="panel-heading">
             <div>
               <p class="panel-kicker">Trade History</p>
@@ -202,6 +228,21 @@
             </div>
           </div>
           <div id="closed-trades" class="trade-list empty-state"></div>
+        </section>
+
+        <section class="panel finance-panel" data-app-section="finance">
+          <div class="panel-heading">
+            <div>
+              <p class="panel-kicker">Finance Workspace</p>
+              <h2>Money, balances, investments, and cards</h2>
+            </div>
+            <div class="toolbar">
+              <button type="button" class="secondary-button compact" id="load-finance-templates">Load Starter Tables</button>
+              <button type="button" class="primary-button compact" id="open-finance-table-dialog">Create Table</button>
+            </div>
+          </div>
+
+          <div id="finance-sections" class="finance-sections"></div>
         </section>
       </main>
     </div>
@@ -249,6 +290,53 @@
       <div class="form-actions">
         <button type="submit" class="primary-button">Save Exit</button>
         <button type="button" class="ghost-button" id="cancel-exit">Cancel</button>
+      </div>
+    </form>
+  </dialog>
+
+  <dialog id="finance-dialog">
+    <form method="dialog" id="finance-entry-form" class="dialog-form">
+      <div class="dialog-header">
+        <div>
+          <p class="panel-kicker">Finance Entry</p>
+          <h2 id="finance-entry-title">Add entry</h2>
+        </div>
+        <button type="button" class="icon-button" id="close-finance-dialog" aria-label="Close">x</button>
+      </div>
+
+      <div id="finance-entry-fields" class="form-grid"></div>
+
+      <div class="form-actions">
+        <button type="submit" class="primary-button">Save Entry</button>
+        <button type="button" class="ghost-button" id="cancel-finance-entry">Cancel</button>
+      </div>
+    </form>
+  </dialog>
+
+  <dialog id="finance-table-dialog">
+    <form method="dialog" id="finance-table-form" class="dialog-form">
+      <div class="dialog-header">
+        <div>
+          <p class="panel-kicker">Finance Table</p>
+          <h2 id="finance-table-title">Create table</h2>
+        </div>
+        <button type="button" class="icon-button" id="close-finance-table-dialog" aria-label="Close">x</button>
+      </div>
+
+      <div class="form-grid">
+        <label>
+          Table name
+          <input type="text" id="financeSectionName" name="financeSectionName" required>
+        </label>
+        <label>
+          Columns
+          <input type="text" id="financeColumns" name="financeColumns" placeholder="Name, Amount, Notes" required>
+        </label>
+      </div>
+
+      <div class="form-actions">
+        <button type="submit" class="primary-button">Save Table</button>
+        <button type="button" class="ghost-button" id="cancel-finance-table">Cancel</button>
       </div>
     </form>
   </dialog>

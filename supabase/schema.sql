@@ -49,3 +49,30 @@ to authenticated
 using ((select auth.uid()) is not null and (select auth.uid()) = user_id);
 
 create index if not exists trades_user_id_idx on public.trades (user_id);
+
+create table if not exists public.finance_workspaces (
+  user_id uuid primary key references auth.users(id) on delete cascade,
+  workspace jsonb not null default '{"sections":[]}'::jsonb,
+  updated_at timestamptz not null default now()
+);
+
+alter table public.finance_workspaces enable row level security;
+
+create policy "Users can view own finance workspace"
+on public.finance_workspaces
+for select
+to authenticated
+using ((select auth.uid()) is not null and (select auth.uid()) = user_id);
+
+create policy "Users can insert own finance workspace"
+on public.finance_workspaces
+for insert
+to authenticated
+with check ((select auth.uid()) is not null and (select auth.uid()) = user_id);
+
+create policy "Users can update own finance workspace"
+on public.finance_workspaces
+for update
+to authenticated
+using ((select auth.uid()) is not null and (select auth.uid()) = user_id)
+with check ((select auth.uid()) is not null and (select auth.uid()) = user_id);

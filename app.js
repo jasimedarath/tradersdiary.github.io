@@ -12,6 +12,7 @@ const DEFAULT_CONFIG = {
     url: "",
     anonKey: "",
     table: "trades",
+    financeTable: "finance_workspaces",
   },
 };
 
@@ -36,15 +37,22 @@ const authMessage = document.getElementById("auth-message");
 const appShell = document.getElementById("app-shell");
 const topbar = document.getElementById("topbar");
 const dashboard = document.querySelector(".dashboard");
-const mobileNavButtons = Array.from(document.querySelectorAll(".mobile-nav-button"));
+const appNavButtons = Array.from(document.querySelectorAll(".app-nav-button"));
+const dashboardHealthBadge = document.getElementById("dashboard-health-badge");
+const overviewOpenTrades = document.getElementById("overview-open-trades");
+const overviewClosedTrades = document.getElementById("overview-closed-trades");
+const overviewFinanceTables = document.getElementById("overview-finance-tables");
+const overviewCashGap = document.getElementById("overview-cash-gap");
 
 const tradeForm = document.getElementById("trade-form");
 const openTradesContainer = document.getElementById("open-trades");
 const closedTradesContainer = document.getElementById("closed-trades");
 const statsGrid = document.getElementById("stats-grid");
+const financeStatsGrid = document.getElementById("finance-stats-grid");
 const insightsContainer = document.getElementById("insights");
 const equityCurveContainer = document.getElementById("equity-curve");
 const monthlyBarsContainer = document.getElementById("monthly-bars");
+const financeSectionsContainer = document.getElementById("finance-sections");
 const exitDialog = document.getElementById("exit-dialog");
 const exitForm = document.getElementById("exit-form");
 const exitTitle = document.getElementById("exit-title");
@@ -54,6 +62,19 @@ const platformSelect = document.getElementById("platform");
 const customPlatformWrap = document.getElementById("custom-platform-wrap");
 const customPlatformInput = document.getElementById("customPlatform");
 const brokerageLink = document.getElementById("brokerage-link");
+const loadFinanceTemplatesButton = document.getElementById("load-finance-templates");
+const financeDialog = document.getElementById("finance-dialog");
+const financeEntryForm = document.getElementById("finance-entry-form");
+const financeEntryTitle = document.getElementById("finance-entry-title");
+const financeEntryFields = document.getElementById("finance-entry-fields");
+const closeFinanceDialogButton = document.getElementById("close-finance-dialog");
+const cancelFinanceEntryButton = document.getElementById("cancel-finance-entry");
+const openFinanceTableDialogButton = document.getElementById("open-finance-table-dialog");
+const financeTableDialog = document.getElementById("finance-table-dialog");
+const financeTableForm = document.getElementById("finance-table-form");
+const financeTableTitle = document.getElementById("finance-table-title");
+const closeFinanceTableDialogButton = document.getElementById("close-finance-table-dialog");
+const cancelFinanceTableButton = document.getElementById("cancel-finance-table");
 
 const emailBackupButton = document.getElementById("email-backup");
 const exportJsonButton = document.getElementById("export-json");
@@ -64,6 +85,7 @@ const cancelExitButton = document.getElementById("cancel-exit");
 
 const SESSION_KEY = "swing-trade-session";
 const DEMO_STORAGE_KEY = "swing-trade-demo-data";
+const DEMO_FINANCE_KEY = "swing-trade-finance-data";
 const today = new Date().toISOString().split("T")[0];
 
 document.getElementById("entryDate").value = today;
@@ -72,8 +94,12 @@ document.getElementById("exitDate").value = today;
 let supabase = null;
 let activeUser = null;
 let trades = [];
+let financeWorkspace = { sections: [] };
 let tradeToExit = null;
-let activeMobileView = "capture";
+let financeSectionToEdit = null;
+let activeFinanceRowEdit = null;
+let financeTableToEdit = null;
+let activeAppView = "dashboard";
 
 if (APP_CONFIG.authMode === "supabase") {
   const { url, anonKey } = APP_CONFIG.supabase;
@@ -227,6 +253,124 @@ function renderStats() {
   `).join("");
 }
 
+function renderDashboardOverview() {
+  const tradeStats = calculateStats();
+  const financeStats = calculateFinanceStats();
+  const cashGap = financeStats.toReceive - financeStats.toPay;
+
+  overviewOpenTrades.textContent = String(tradeStats.openCount);
+  overviewClosedTrades.textContent = String(tradeStats.closedCount);
+  overviewFinanceTables.textContent = String((financeWorkspace.sections || []).length);
+  overviewCashGap.textContent = formatCurrency(cashGap);
+  overviewCashGap.className = cashGap >= 0 ? "profit" : "loss";
+
+  let badgeText = "Build your flow";
+  let isError = false;
+
+  if (tradeStats.closedCount > 0) {
+    badgeText = tradeStats.totalNet >= 0 ? "Trading in green" : "Review recent losses";
+    isError = tradeStats.totalNet < 0;
+  } else if ((financeWorkspace.sections || []).length > 0) {
+    badgeText = "Finance workspace active";
+  }
+
+  dashboardHealthBadge.textContent = badgeText;
+  dashboardHealthBadge.classList.toggle("badge-error", isError);
+}
+
+function parseAmount(value) {
+  const normalized = String(value ?? "").replace(/[^0-9.-]/g, "");
+  const parsed = Number(normalized);
+  return Number.isFinite(parsed) ? parsed : 0;
+}
+
+function calculateFinanceStats() {
+  const totals = {
+    toPay: 0,
+    toReceive: 0,
+    bankBalance: 0,
+    invested: 0,
+    cardsUsed: 0,
+    cardsAvailable: 0,
+  };
+
+  (financeWorkspace.sections || []).forEach((section) => {
+    const sectionName = section.name.toLowerCase();
+    section.rows.forEach((row) => {
+      const values = row.values || {};
+
+      if (sectionName.includes("pay")) {
+        totals.toPay += parseAmount(values.Amount);
+      }
+      if (sectionName.includes("receive")) {
+        totals.toReceive += parseAmount(values.Amount);
+      }
+      if (sectionName.includes("bank")) {
+        totals.bankBalance += parseAmount(values.Balance);
+      }
+      if (sectionName.includes("investment")) {
+        totals.invested += parseAmount(values["Amount Invested"]);
+      }
+      if (sectionName.includes("credit")) {
+        totals.cardsUsed += parseAmount(values["Used Amount"]);
+        totals.cardsAvailable += parseAmount(values["Available Limit"]);
+      }
+    });
+  });
+
+  return totals;
+}
+
+function renderFinanceStats() {
+  const stats = calculateFinanceStats();
+  const cards = [
+    {
+      title: "Amount To Pay",
+      value: formatCurrency(stats.toPay),
+      note: "Outstanding payables",
+      className: stats.toPay > 0 ? "loss" : "",
+    },
+    {
+      title: "Amount To Receive",
+      value: formatCurrency(stats.toReceive),
+      note: "Expected receivables",
+      className: stats.toReceive > 0 ? "profit" : "",
+    },
+    {
+      title: "Bank Balance",
+      value: formatCurrency(stats.bankBalance),
+      note: "Across tracked banks",
+      className: "",
+    },
+    {
+      title: "Invested Capital",
+      value: formatCurrency(stats.invested),
+      note: "Recorded investment amount",
+      className: "",
+    },
+    {
+      title: "Card Used",
+      value: formatCurrency(stats.cardsUsed),
+      note: "Current credit used",
+      className: stats.cardsUsed > 0 ? "loss" : "",
+    },
+    {
+      title: "Card Available",
+      value: formatCurrency(stats.cardsAvailable),
+      note: "Available limit remaining",
+      className: stats.cardsAvailable > 0 ? "profit" : "",
+    },
+  ];
+
+  financeStatsGrid.innerHTML = cards.map((card) => `
+    <article class="stat-card">
+      <h3>${card.title}</h3>
+      <div class="stat-value ${card.className}">${card.value}</div>
+      <div class="stat-note">${card.note}</div>
+    </article>
+  `).join("");
+}
+
 function createTradeCard(trade) {
   const fragment = tradeCardTemplate.content.cloneNode(true);
   const symbol = fragment.querySelector(".trade-symbol");
@@ -356,10 +500,114 @@ function renderInsights() {
 }
 
 function renderApp() {
+  renderDashboardOverview();
   renderStats();
+  renderFinanceStats();
   renderGraphs();
   renderTradeLists();
   renderInsights();
+  renderFinanceWorkspace();
+}
+
+function buildFinanceTemplates() {
+  return [
+    {
+      id: crypto.randomUUID(),
+      name: "Amounts To Pay",
+      columns: ["Name", "Amount", "Due Date", "Notes"],
+      rows: [],
+    },
+    {
+      id: crypto.randomUUID(),
+      name: "Amounts To Receive",
+      columns: ["Name", "Amount", "Expected Date", "Notes"],
+      rows: [],
+    },
+    {
+      id: crypto.randomUUID(),
+      name: "Bank Details",
+      columns: ["Bank", "Account Type", "Account Number", "Balance"],
+      rows: [],
+    },
+    {
+      id: crypto.randomUUID(),
+      name: "Investments",
+      columns: ["Name", "Type", "Amount Invested", "Current Price", "Units", "Notes"],
+      rows: [],
+    },
+    {
+      id: crypto.randomUUID(),
+      name: "Credit Cards",
+      columns: ["Card Name", "Available Limit", "Used Amount", "Due Date", "Notes"],
+      rows: [],
+    },
+  ];
+}
+
+function renderFinanceWorkspace() {
+  if (!financeWorkspace.sections.length) {
+    financeSectionsContainer.innerHTML = `<div class="empty-message">No finance tables yet. Create your own or load the starter tables.</div>`;
+    return;
+  }
+
+  financeSectionsContainer.innerHTML = financeWorkspace.sections.map((section) => `
+    <article class="finance-card">
+      <div class="finance-card-header">
+        <div>
+          <h3>${section.name}</h3>
+          <p class="finance-columns">${section.columns.join(" | ")}</p>
+        </div>
+        <div class="finance-actions">
+          <button type="button" class="primary-button compact" data-finance-add="${section.id}">Add Entry</button>
+          <button type="button" class="secondary-button compact" data-finance-edit-table="${section.id}">Edit Table</button>
+          <button type="button" class="ghost-button compact" data-finance-delete-table="${section.id}">Delete Table</button>
+        </div>
+      </div>
+      <div class="finance-table-wrap">
+        ${section.rows.length ? `
+          <table class="finance-table">
+            <thead>
+              <tr>
+                ${section.columns.map((column) => `<th>${column}</th>`).join("")}
+                <th class="table-action-cell">Actions</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${section.rows.map((row) => `
+                <tr>
+                  ${section.columns.map((column) => `<td>${row.values[column] || ""}</td>`).join("")}
+                  <td class="table-action-cell">
+                    <div class="finance-actions">
+                      <button type="button" class="secondary-button compact" data-finance-edit-row="${section.id}:${row.id}">Edit</button>
+                      <button type="button" class="ghost-button compact" data-finance-delete-row="${section.id}:${row.id}">Delete</button>
+                    </div>
+                  </td>
+                </tr>
+              `).join("")}
+            </tbody>
+          </table>
+        ` : `<div class="finance-empty">No entries yet.</div>`}
+      </div>
+    </article>
+  `).join("");
+
+  financeSectionsContainer.querySelectorAll("[data-finance-add]").forEach((button) => {
+    button.addEventListener("click", () => openFinanceDialog(button.dataset.financeAdd));
+  });
+  financeSectionsContainer.querySelectorAll("[data-finance-edit-table]").forEach((button) => {
+    button.addEventListener("click", () => openFinanceTableDialog(button.dataset.financeEditTable));
+  });
+  financeSectionsContainer.querySelectorAll("[data-finance-delete-table]").forEach((button) => {
+    button.addEventListener("click", () => deleteFinanceTable(button.dataset.financeDeleteTable));
+  });
+  financeSectionsContainer.querySelectorAll("[data-finance-edit-row]").forEach((button) => {
+    const [sectionId, rowId] = button.dataset.financeEditRow.split(":");
+    button.addEventListener("click", () => openFinanceDialog(sectionId, rowId));
+  });
+  financeSectionsContainer.querySelectorAll("[data-finance-delete-row]").forEach((button) => {
+    const [sectionId, rowId] = button.dataset.financeDeleteRow.split(":");
+    button.addEventListener("click", () => deleteFinanceRow(sectionId, rowId));
+  });
 }
 
 function renderGraphs() {
@@ -515,6 +763,28 @@ async function loadTrades() {
   renderApp();
 }
 
+async function loadFinanceWorkspace() {
+  if (APP_CONFIG.authMode === "supabase") {
+    const { data, error } = await supabase
+      .from(APP_CONFIG.supabase.financeTable)
+      .select("workspace")
+      .eq("user_id", activeUser.id)
+      .maybeSingle();
+
+    if (error) throw error;
+
+    financeWorkspace = data?.workspace && Array.isArray(data.workspace.sections)
+      ? data.workspace
+      : { sections: [] };
+    renderFinanceWorkspace();
+    return;
+  }
+
+  const raw = localStorage.getItem(DEMO_FINANCE_KEY);
+  financeWorkspace = raw ? JSON.parse(raw) : { sections: [] };
+  renderFinanceWorkspace();
+}
+
 async function saveTrades() {
   if (APP_CONFIG.authMode === "supabase") {
     if (!trades.length) {
@@ -542,6 +812,24 @@ async function saveTrades() {
 
   localStorage.setItem(DEMO_STORAGE_KEY, JSON.stringify(trades));
   setStorageBadge("Saved");
+}
+
+async function saveFinanceWorkspace() {
+  if (APP_CONFIG.authMode === "supabase") {
+    const payload = {
+      user_id: activeUser.id,
+      workspace: financeWorkspace,
+    };
+
+    const { error } = await supabase
+      .from(APP_CONFIG.supabase.financeTable)
+      .upsert(payload, { onConflict: "user_id" });
+
+    if (error) throw error;
+    return;
+  }
+
+  localStorage.setItem(DEMO_FINANCE_KEY, JSON.stringify(financeWorkspace));
 }
 
 function mapTradeFromDb(row) {
@@ -597,6 +885,18 @@ function resetExitForm() {
   document.getElementById("exitDate").value = today;
 }
 
+function resetFinanceEntryForm() {
+  financeSectionToEdit = null;
+  activeFinanceRowEdit = null;
+  financeEntryForm.reset();
+  financeEntryFields.innerHTML = "";
+}
+
+function resetFinanceTableForm() {
+  financeTableToEdit = null;
+  financeTableForm.reset();
+}
+
 function openExitDialog(tradeId) {
   const trade = trades.find((item) => item.id === tradeId);
   if (!trade) return;
@@ -617,6 +917,13 @@ async function persistAndRender() {
   renderApp();
 }
 
+async function persistFinanceAndRender() {
+  setStorageBadge("Saving");
+  await saveFinanceWorkspace();
+  renderFinanceWorkspace();
+  setStorageBadge("Saved");
+}
+
 function showApp() {
   authShell.hidden = true;
   authShell.style.display = "none";
@@ -624,7 +931,7 @@ function showApp() {
   appShell.style.display = "block";
   topbar.hidden = false;
   topbar.style.display = "flex";
-  applyMobileView();
+  applyAppView();
 }
 
 function showAuth() {
@@ -636,11 +943,11 @@ function showAuth() {
   topbar.style.display = "none";
 }
 
-function applyMobileView() {
-  dashboard.classList.remove("mobile-view-capture", "mobile-view-review", "mobile-view-history");
-  dashboard.classList.add(`mobile-view-${activeMobileView}`);
-  mobileNavButtons.forEach((button) => {
-    button.classList.toggle("active", button.dataset.mobileView === activeMobileView);
+function applyAppView() {
+  dashboard.classList.remove("app-view-dashboard", "app-view-trades", "app-view-finance");
+  dashboard.classList.add(`app-view-${activeAppView}`);
+  appNavButtons.forEach((button) => {
+    button.classList.toggle("active", button.dataset.appView === activeAppView);
   });
 }
 
@@ -656,6 +963,61 @@ function updatePlatformUI() {
   brokerageLink.href = platformSelect.value === "Upstox"
     ? "https://upstox.com/calculator/brokerage-calculator/"
     : "https://upstox.com/calculator/brokerage-calculator/";
+}
+
+function openFinanceDialog(sectionId, rowId = null) {
+  const section = financeWorkspace.sections.find((item) => item.id === sectionId);
+  if (!section) return;
+
+  financeSectionToEdit = sectionId;
+  activeFinanceRowEdit = rowId;
+  financeEntryTitle.textContent = rowId ? `Edit entry in ${section.name}` : `Add entry to ${section.name}`;
+  const row = rowId ? section.rows.find((item) => item.id === rowId) : null;
+  financeEntryFields.innerHTML = section.columns.map((column) => `
+    <label>
+      ${column}
+      <input type="text" name="${column}" value="${row?.values?.[column] || ""}" required>
+    </label>
+  `).join("");
+  financeDialog.showModal();
+}
+
+function openFinanceTableDialog(sectionId = null) {
+  financeTableToEdit = sectionId;
+  const section = sectionId ? financeWorkspace.sections.find((item) => item.id === sectionId) : null;
+  financeTableTitle.textContent = section ? "Edit table" : "Create table";
+  document.getElementById("financeSectionName").value = section?.name || "";
+  document.getElementById("financeColumns").value = section?.columns?.join(", ") || "";
+  financeTableDialog.showModal();
+}
+
+async function deleteFinanceTable(sectionId) {
+  const shouldDelete = window.confirm("Delete this finance table and all its entries?");
+  if (!shouldDelete) return;
+
+  financeWorkspace.sections = financeWorkspace.sections.filter((section) => section.id !== sectionId);
+
+  try {
+    await persistFinanceAndRender();
+  } catch (error) {
+    setStorageBadge(error.message || "Delete failed", true);
+  }
+}
+
+async function deleteFinanceRow(sectionId, rowId) {
+  const shouldDelete = window.confirm("Delete this entry?");
+  if (!shouldDelete) return;
+
+  const section = financeWorkspace.sections.find((item) => item.id === sectionId);
+  if (!section) return;
+
+  section.rows = section.rows.filter((row) => row.id !== rowId);
+
+  try {
+    await persistFinanceAndRender();
+  } catch (error) {
+    setStorageBadge(error.message || "Delete failed", true);
+  }
 }
 
 async function loginWithSupabase(email, password) {
@@ -716,10 +1078,50 @@ authForm.addEventListener("submit", async (event) => {
     }
 
     await loadTrades();
+    await loadFinanceWorkspace();
     showApp();
     setAuthMessage("");
   } catch (error) {
     setAuthMessage("Login failed", true);
+  }
+});
+
+financeTableForm.addEventListener("submit", async (event) => {
+  event.preventDefault();
+  const formData = new FormData(financeTableForm);
+  const name = formData.get("financeSectionName").toString().trim();
+  const columns = formData.get("financeColumns").toString().split(",").map((item) => item.trim()).filter(Boolean);
+
+  if (!name || !columns.length) return;
+
+  if (financeTableToEdit) {
+    financeWorkspace.sections = financeWorkspace.sections.map((section) => {
+      if (section.id !== financeTableToEdit) return section;
+      const nextRows = section.rows.map((row) => {
+        const nextValues = {};
+        columns.forEach((column) => {
+          nextValues[column] = row.values[column] || "";
+        });
+        return { ...row, values: nextValues };
+      });
+      return { ...section, name, columns, rows: nextRows };
+    });
+  } else {
+    financeWorkspace.sections.unshift({
+      id: crypto.randomUUID(),
+      name,
+      columns,
+      rows: [],
+    });
+  }
+
+  financeTableDialog.close();
+  resetFinanceTableForm();
+
+  try {
+    await persistFinanceAndRender();
+  } catch (error) {
+    setStorageBadge(error.message || "Save failed", true);
   }
 });
 
@@ -792,7 +1194,7 @@ exitForm.addEventListener("submit", async (event) => {
 });
 
 exportJsonButton.addEventListener("click", () => {
-  downloadTextFile("swing-trades.json", "application/json", JSON.stringify({ trades }, null, 2));
+  downloadTextFile("swing-tracker-data.json", "application/json", JSON.stringify({ trades, financeWorkspace }, null, 2));
 });
 
 exportCsvButton.addEventListener("click", () => {
@@ -819,6 +1221,54 @@ emailBackupButton.addEventListener("click", async () => {
   window.location.href = "mailto:?subject=Swing%20Trades%20Backup&body=The%20backup%20CSV%20has%20been%20downloaded.%20Please%20attach%20the%20file%20to%20this%20email.";
 });
 
+loadFinanceTemplatesButton.addEventListener("click", async () => {
+  if (financeWorkspace.sections.length) return;
+
+  financeWorkspace = { sections: buildFinanceTemplates() };
+
+  try {
+    await persistFinanceAndRender();
+  } catch (error) {
+    setStorageBadge(error.message || "Save failed", true);
+  }
+});
+
+openFinanceTableDialogButton.addEventListener("click", () => {
+  openFinanceTableDialog();
+});
+
+financeEntryForm.addEventListener("submit", async (event) => {
+  event.preventDefault();
+  if (!financeSectionToEdit) return;
+
+  const section = financeWorkspace.sections.find((item) => item.id === financeSectionToEdit);
+  if (!section) return;
+
+  const formData = new FormData(financeEntryForm);
+  const values = {};
+  section.columns.forEach((column) => {
+    values[column] = formData.get(column)?.toString().trim() || "";
+  });
+
+  if (activeFinanceRowEdit) {
+    section.rows = section.rows.map((row) => row.id === activeFinanceRowEdit ? { ...row, values } : row);
+  } else {
+    section.rows.unshift({
+      id: crypto.randomUUID(),
+      values,
+    });
+  }
+
+  financeDialog.close();
+  resetFinanceEntryForm();
+
+  try {
+    await persistFinanceAndRender();
+  } catch (error) {
+    setStorageBadge(error.message || "Save failed", true);
+  }
+});
+
 logoutButton.addEventListener("click", async () => {
   if (APP_CONFIG.authMode === "supabase" && supabase) {
     await supabase.auth.signOut();
@@ -827,16 +1277,17 @@ logoutButton.addEventListener("click", async () => {
   sessionStorage.removeItem(SESSION_KEY);
   activeUser = null;
   trades = [];
+  financeWorkspace = { sections: [] };
   showAuth();
   authForm.reset();
   setAuthMessage("");
 });
 
 platformSelect.addEventListener("change", updatePlatformUI);
-mobileNavButtons.forEach((button) => {
+appNavButtons.forEach((button) => {
   button.addEventListener("click", () => {
-    activeMobileView = button.dataset.mobileView;
-    applyMobileView();
+    activeAppView = button.dataset.appView;
+    applyAppView();
   });
 });
 
@@ -851,16 +1302,39 @@ cancelExitButton.addEventListener("click", () => {
 });
 
 exitDialog.addEventListener("close", resetExitForm);
+closeFinanceDialogButton.addEventListener("click", () => {
+  financeDialog.close();
+  resetFinanceEntryForm();
+});
+
+cancelFinanceEntryButton.addEventListener("click", () => {
+  financeDialog.close();
+  resetFinanceEntryForm();
+});
+
+financeDialog.addEventListener("close", resetFinanceEntryForm);
+closeFinanceTableDialogButton.addEventListener("click", () => {
+  financeTableDialog.close();
+  resetFinanceTableForm();
+});
+
+cancelFinanceTableButton.addEventListener("click", () => {
+  financeTableDialog.close();
+  resetFinanceTableForm();
+});
+
+financeTableDialog.addEventListener("close", resetFinanceTableForm);
 
 async function init() {
   customPlatformWrap.style.display = "none";
   updatePlatformUI();
-  applyMobileView();
+  applyAppView();
   const restored = await restoreSession();
 
   if (restored) {
     try {
       await loadTrades();
+      await loadFinanceWorkspace();
       showApp();
       return;
     } catch (error) {
