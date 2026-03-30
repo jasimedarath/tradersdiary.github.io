@@ -557,10 +557,20 @@ function renderFinanceWorkspace() {
           <h3>${section.name}</h3>
           <p class="finance-columns">${section.columns.join(" | ")}</p>
         </div>
-        <div class="finance-actions">
+        <div class="finance-card-toolbar">
           <button type="button" class="primary-button compact" data-finance-add="${section.id}">Add Entry</button>
-          <button type="button" class="secondary-button compact" data-finance-edit-table="${section.id}">Edit Table</button>
-          <button type="button" class="ghost-button compact" data-finance-delete-table="${section.id}">Delete Table</button>
+          <div class="finance-actions finance-actions-muted">
+            <button type="button" class="finance-icon-button" data-finance-edit-table="${section.id}" title="Edit table" aria-label="Edit table">
+              <svg viewBox="0 0 24 24" aria-hidden="true">
+                <path d="M4 20h4l10-10-4-4L4 16v4zm12.7-12.3 1.6-1.6a1 1 0 0 1 1.4 0l1.2 1.2a1 1 0 0 1 0 1.4L19.3 10l-2.6-2.3z"></path>
+              </svg>
+            </button>
+            <button type="button" class="finance-icon-button danger" data-finance-delete-table="${section.id}" title="Delete table" aria-label="Delete table">
+              <svg viewBox="0 0 24 24" aria-hidden="true">
+                <path d="M9 3h6l1 2h4v2H4V5h4l1-2zm1 7h2v8h-2v-8zm4 0h2v8h-2v-8zM7 8h10l-1 12H8L7 8z"></path>
+              </svg>
+            </button>
+          </div>
         </div>
       </div>
       <div class="finance-table-wrap">
